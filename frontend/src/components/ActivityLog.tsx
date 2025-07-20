@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MessageSquare, Upload, FileText, RefreshCw, Search, Brain, Shield, Zap, X } from 'lucide-react';
+import { MessageSquare, Upload, FileText, RefreshCw, Search, Brain, Shield, Zap, X, Database, Code, Layers, Key, BarChart3, FileSearch, Hash } from 'lucide-react';
 
 interface Session {
   id: string;
@@ -133,16 +133,76 @@ export default function ActivityLog({ currentSessionId, sessions = [], currentPr
     const statusClasses = status === 'in-progress' ? 'animate-spin' : '';
     
     switch (type) {
+      // Basic activities
       case 'session': return <MessageSquare className={`${baseClasses} text-purple-500`} />;
       case 'upload': return <Upload className={`${baseClasses} text-green-500 ${statusClasses}`} />;
       case 'document': return <FileText className={`${baseClasses} text-blue-500 ${statusClasses}`} />;
+      
+      // Query processing
       case 'query': return <Search className={`${baseClasses} text-blue-600`} />;
+      case 'original_query': return <Search className={`${baseClasses} text-blue-700`} />;
+      case 'enriched_query': return <Brain className={`${baseClasses} text-purple-600`} />;
       case 'enrich': return <Brain className={`${baseClasses} text-purple-600 ${statusClasses}`} />;
-      case 'retrieve': return <Search className={`${baseClasses} text-green-600 ${statusClasses}`} />;
+      
+      // Document retrieval
+      case 'retrieve': return <FileSearch className={`${baseClasses} text-green-600 ${statusClasses}`} />;
+      case 'retrieved_chunks': return <Layers className={`${baseClasses} text-green-700`} />;
+      case 'retrieved_metadata': return <Database className={`${baseClasses} text-cyan-600`} />;
+      
+      // Privacy & masking
       case 'mask': return <Shield className={`${baseClasses} text-orange-600 ${statusClasses}`} />;
+      case 'masked_chunks': return <Shield className={`${baseClasses} text-orange-700`} />;
+      case 'masked_response': return <Shield className={`${baseClasses} text-red-600`} />;
+      case 'unmasked_response': return <Shield className={`${baseClasses} text-green-600`} />;
+      
+      // Response generation
       case 'response': return <Zap className={`${baseClasses} text-yellow-600 ${statusClasses}`} />;
+      case 'scaled_result': return <BarChart3 className={`${baseClasses} text-blue-500`} />;
+      case 'unscaled_result': return <BarChart3 className={`${baseClasses} text-indigo-500`} />;
+      
+      // Formula & processing
+      case 'formula_check': return <Code className={`${baseClasses} text-purple-500`} />;
+      case 'processed_docs': return <FileText className={`${baseClasses} text-gray-600`} />;
+      
+      // Chat log
+      case 'chat_log_pending': return <Database className={`${baseClasses} text-orange-500 ${statusClasses}`} />;
+      case 'chat_log_id': return <Hash className={`${baseClasses} text-green-500`} />;
+      
+      // Chunk details
+      case 'chunk_detail_0':
+      case 'chunk_detail_1': 
+      case 'chunk_detail_2': return <Key className={`${baseClasses} text-gray-500`} />;
+      
+      // Transparency
+      case 'transparency': return <RefreshCw className={`${baseClasses} text-gray-400 ${statusClasses}`} />;
+      
+      // Final status
+      case 'final_status': 
+        if (status === 'completed') return <Brain className={`${baseClasses} text-green-600`} />;
+        if (status === 'error') return <X className={`${baseClasses} text-red-600`} />;
+        return <RefreshCw className={`${baseClasses} text-blue-500 ${statusClasses}`} />;
+      
       default: return <MessageSquare className={`${baseClasses} text-gray-500`} />;
     }
+  };
+
+  // Group process steps by phase for better organization
+  const groupProcessSteps = (steps: ProcessStep[]) => {
+    const phases = {
+      'Query Processing': ['query', 'original_query', 'enriched_query', 'enrich'],
+      'Document Retrieval': ['retrieve', 'retrieved_chunks', 'retrieved_metadata', 'chunk_detail_0', 'chunk_detail_1', 'chunk_detail_2'],
+      'Privacy & Masking': ['mask', 'masked_chunks', 'masked_response', 'unmasked_response'],
+      'Response Generation': ['response', 'scaled_result', 'unscaled_result'],
+      'Final Processing': ['formula_check', 'processed_docs', 'chat_log_pending', 'transparency', 'final_status']
+    };
+
+    const grouped: Record<string, ProcessStep[]> = {};
+    
+    Object.entries(phases).forEach(([phaseName, stepTypes]) => {
+      grouped[phaseName] = steps.filter(step => stepTypes.includes(step.step));
+    });
+
+    return grouped;
   };
 
   const getStatusColor = (status?: string) => {
@@ -192,54 +252,90 @@ export default function ActivityLog({ currentSessionId, sessions = [], currentPr
             {/* Current Process Steps */}
             {isProcessing && currentProcess.length > 0 && (
               <div className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Current Process</h4>
-                <div className="space-y-2">
-                  {currentProcess.map((step, index) => (
-                    <div key={`process-${index}`} className={`flex items-start space-x-3 p-3 rounded-lg border ${getStatusColor(step.status)}`}>
-                      <div className="flex-shrink-0 mt-1">
-                        {getActivityIcon(step.step, step.status)}
+                <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin text-blue-500" />
+                  Current Process
+                </h4>
+                
+                {(() => {
+                  const groupedSteps = groupProcessSteps(currentProcess);
+                  return Object.entries(groupedSteps).map(([phaseName, steps]) => {
+                    if (steps.length === 0) return null;
+                    
+                    return (
+                      <div key={phaseName} className="mb-4">
+                        <h5 className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
+                          {phaseName}
+                        </h5>
+                        <div className="space-y-2 pl-2 border-l-2 border-gray-200">
+                          {steps.map((step, index) => (
+                            <div key={`process-${phaseName}-${index}`} className={`flex items-start space-x-3 p-3 rounded-lg border ${getStatusColor(step.status)}`}>
+                              <div className="flex-shrink-0 mt-1">
+                                {getActivityIcon(step.step, step.status)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-800 break-words">{step.message}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {formatTimestamp(step.timestamp)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-800">{step.message}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {formatTimestamp(step.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    );
+                  });
+                })()}
               </div>
             )}
 
             {/* Recent Process History */}
             {!isProcessing && processHistory.length > 0 && (
               <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-medium text-gray-700">Recent Process</h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-green-500" />
+                    Recent Process
+                  </h4>
                   <button
                     onClick={clearProcessHistory}
-                    className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                    className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100"
                     title="Clear process history"
                   >
                     <X className="w-3 h-3" />
                     Clear
                   </button>
                 </div>
-                <div className="space-y-2">
-                  {processHistory.slice(0, 10).map((step, index) => (
-                    <div key={`history-${index}`} className={`flex items-start space-x-3 p-3 rounded-lg border ${getStatusColor(step.status)}`}>
-                      <div className="flex-shrink-0 mt-1">
-                        {getActivityIcon(step.step, step.status)}
+                
+                {(() => {
+                  const groupedSteps = groupProcessSteps(processHistory.slice(0, 20));
+                  return Object.entries(groupedSteps).map(([phaseName, steps]) => {
+                    if (steps.length === 0) return null;
+                    
+                    return (
+                      <div key={`history-${phaseName}`} className="mb-4">
+                        <h5 className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
+                          {phaseName}
+                        </h5>
+                        <div className="space-y-2 pl-2 border-l-2 border-gray-200">
+                          {steps.map((step, index) => (
+                            <div key={`history-${phaseName}-${index}`} className={`flex items-start space-x-3 p-3 rounded-lg border ${getStatusColor(step.status)}`}>
+                              <div className="flex-shrink-0 mt-1">
+                                {getActivityIcon(step.step, step.status)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-800 break-words">{step.message}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {formatTimestamp(step.timestamp)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-800">{step.message}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {formatTimestamp(step.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    );
+                  });
+                })()}
               </div>
             )}
 
