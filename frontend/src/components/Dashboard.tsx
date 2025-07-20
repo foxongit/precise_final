@@ -583,45 +583,37 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       setInputValue('');
       setIsLoading(true);
 
-      // IMPORTANT: First, save the user message to chat log
-      // This ensures the user's message is always saved even if AI generation fails
+      // Generate AI response using the query API - it will save the complete conversation
+      const queryRequest = {
+        query: userMessageContent,
+        session_id: newConversationId,
+        doc_ids: Array.from(new Set(documentsToAssociate)), // Deduplicate doc_ids
+        k: 4
+      };
+      
+      console.log('Sending query to AI for response:', {
+        messageLength: userMessageContent.length,
+        sessionId: newConversationId,
+        documentCount: documentsToAssociate.length
+      });
+      
       try {
-        console.log('Saving user message to chat log');
-        await sessionsApi.saveUserMessage(newConversationId, userMessageContent);
-        
-        // Small delay to ensure message is saved
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Then generate AI response using the query API
-        const queryRequest = {
-          query: userMessageContent,
-          session_id: newConversationId,
-          doc_ids: Array.from(new Set(documentsToAssociate)), // Deduplicate doc_ids
-          k: 4
-        };
-        
-        console.log('Sending query to AI for response:', {
-          messageLength: userMessageContent.length,
-          sessionId: newConversationId,
-          documentCount: documentsToAssociate.length
-        });
-        
         // Send the query to the API
         const queryResponse = await queryApi.submitQuery(queryRequest);
         
         if (queryResponse && queryResponse.data && queryResponse.data.response) {
           console.log('AI response received successfully');
+          // Query API automatically saved the conversation - no manual save needed
         } else {
-          console.log('Query API returned empty response, saving default response');
-          // Save a default response if AI doesn't respond
-          await sessionsApi.saveAIResponse(newConversationId, "I'm having trouble processing your request right now. Please try again.");
+          console.log('Query API returned empty response');
+          // Query API already handled database save (even empty response case)
         }
       } catch (error) {
         console.error('Failed to get AI response:', error);
-        // Save an error response if the AI generation failed
+        // For complete API failures (network errors), manually save since API never executed
         try {
-          console.log('Saving error response to chat log');
-          await sessionsApi.saveAIResponse(newConversationId, "Please upload a document to continue querying.");
+          console.log('Saving error response after API failure in createNewChat');
+          await sessionsApi.saveConversationPair(newConversationId, userMessageContent, "Please upload a document to continue querying.");
         } catch (logError) {
           console.error('Failed to save error response:', logError);
         }
@@ -972,10 +964,6 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       console.log('Available documents:', uploadedFiles.map(f => ({ id: f.id, name: f.name })));
 
       try {
-        // First, save the user message to chat log
-        console.log('Saving user message to chat log');
-        await sessionsApi.saveUserMessage(conversationId, userMessage);
-        
         // Use the RAG API if documents are selected and backend is available
         if (selectedDocIds.length > 0 && isBackendAvailable) {
           console.log('Using RAG query API with documents:', selectedDocIds);
@@ -1113,52 +1101,34 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               addProcessStep('transparency', 'completed', 'Response details processed for transparency');
               addProcessStep('response', 'completed', 'AI response generated successfully');
               
-              // Save the AI response and capture chat log ID
-              const aiResponse = responseData.scaled_response || responseData.response || "I'm having trouble processing your request right now. Please try again.";
-              console.log('Saving AI response to database');
-              
-              try {
-                const saveResponse = await sessionsApi.saveAIResponse(conversationId, aiResponse);
-                // Try to extract chat log ID from response
-                let chatLogId = 'Unknown';
-                if (saveResponse && saveResponse.data) {
-                  chatLogId = saveResponse.data.id || saveResponse.data.chat_log_id || saveResponse.data.chatLogId || 'Generated';
-                }
-                // Update the pending chat log step
-                addProcessStep('chat_log_pending', 'completed', `Chat Log ID: ${chatLogId}`);
-                addProcessStep('final_status', 'completed', 'Query processed successfully');
-              } catch (saveError) {
-                console.error('Failed to save AI response:', saveError);
-                addProcessStep('chat_log_pending', 'error', 'Chat Log ID: Failed to save');
-                addProcessStep('final_status', 'error', 'Failed to save response to database');
-              }
+              // Query API automatically saves the conversation to database
+              // No need to manually save since submitQuery handles it
+              addProcessStep('chat_log_pending', 'completed', 'Conversation automatically saved by query API');
+              addProcessStep('final_status', 'completed', 'Query processed successfully');
             } else {
               console.error('Invalid response structure:', queryResponse);
               addProcessStep('response', 'error', 'Failed to generate AI response - Invalid response structure');
-              // Save a default response if AI doesn't respond
-              try {
-                await sessionsApi.saveAIResponse(conversationId, "I'm having trouble processing your request right now. Please try again.");
-                addProcessStep('chat_log_pending', 'completed', 'Error response saved to database');
-                addProcessStep('final_status', 'error', 'Query failed - Invalid API response');
-              } catch (saveError) {
-                addProcessStep('chat_log_pending', 'error', 'Failed to save error response');
-                addProcessStep('final_status', 'error', 'Query failed - Unable to save response');
-              }
+              // Query API already handled database save (even empty response case)
+              addProcessStep('chat_log_pending', 'completed', 'API handled database save (empty response case)');
+              addProcessStep('final_status', 'error', 'Empty API response - database save handled by API');
             }
           } catch (apiError) {
-            console.error('API call failed:', apiError);
+            console.error('API call failed (network/server error):', apiError);
             addProcessStep('enrich', 'error', 'Query enrichment failed');
             addProcessStep('retrieve', 'error', 'Document retrieval failed');
             addProcessStep('response', 'error', `API call failed: ${(apiError as Error).message || 'Network error'}`);
             
-            // Save an error response if the API fails
+            // For complete API failures (network errors), manually save since API never executed
+            addProcessStep('chat_log_pending', 'in-progress', 'Saving error response after API failure...');
             try {
-              await sessionsApi.saveAIResponse(conversationId, "Please upload a document to continue querying.");
-              addProcessStep('chat_log_pending', 'completed', 'Error response saved to database');
-              addProcessStep('final_status', 'error', 'Query failed - API unavailable');
+              const errorResponse = "Please upload a document to continue querying.";
+              await sessionsApi.saveConversationPair(conversationId, userMessage, errorResponse);
+              addProcessStep('chat_log_pending', 'completed', 'Error response saved after API failure');
+              addProcessStep('final_status', 'error', 'API network failure - manual save completed');
             } catch (saveError) {
+              console.error('Failed to save error response:', saveError);
               addProcessStep('chat_log_pending', 'error', 'Failed to save error response');
-              addProcessStep('final_status', 'error', 'Query failed - Unable to save response');
+              addProcessStep('final_status', 'error', 'Complete failure - API and save both failed');
             }
           }
         } else {
@@ -1169,7 +1139,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             console.log("No documents selected, saving general response");
             addProcessStep('chat_log_pending', 'in-progress', 'Saving general response...');
             try {
-              await sessionsApi.saveAIResponse(conversationId, "I'd be happy to help! Please upload some documents so I can provide more specific assistance, or ask me a general question.");
+              const generalResponse = "I'd be happy to help! Please upload some documents so I can provide more specific assistance, or ask me a general question.";
+              await sessionsApi.saveConversationPair(conversationId, userMessage, generalResponse);
               addProcessStep('response', 'completed', 'General response provided');
               addProcessStep('chat_log_pending', 'completed', 'General response saved to database');
               addProcessStep('final_status', 'completed', 'Query completed with general response');
@@ -1182,7 +1153,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             console.log("Backend unavailable, saving error response");
             addProcessStep('chat_log_pending', 'in-progress', 'Saving error response...');
             try {
-              await sessionsApi.saveAIResponse(conversationId, "I'm currently unable to process your request. Please check your connection and try again.");
+              const errorResponse = "I'm currently unable to process your request. Please check your connection and try again.";
+              await sessionsApi.saveConversationPair(conversationId, userMessage, errorResponse);
               addProcessStep('response', 'error', 'Backend unavailable');
               addProcessStep('chat_log_pending', 'completed', 'Error response saved to database');
               addProcessStep('final_status', 'error', 'Query failed - Backend unavailable');
@@ -1216,13 +1188,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         
         addProcessStep('response', 'error', 'Processing failed: ' + (error as Error).message);
         
-        // Save error message to user
-        try {
-          await sessionsApi.saveAIResponse(conversationId, "Please upload a document to continue querying.");
-          await refreshChats();
-        } catch (logError) {
-          console.error('Failed to save error response:', logError);
-        }
+        // Don't save again here - errors should already be handled in inner try-catch blocks
+        // to avoid duplicate saves
       }
       
     } catch (error) {
