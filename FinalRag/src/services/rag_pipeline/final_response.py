@@ -25,6 +25,7 @@ INSTRUCTIONS:
 1. Provide a clear, comprehensive answer to the user's query
 2. Use the calculated result
 3. Be precise and factual
+4. Use the calculated result as it is - DO NOT modify or recalculate it or don't put commas or it in quotes
 5. Keep the response well-structured and easy to understand and in natural language
 
 Generate a final response that combines the calculated result to answer the user's query:

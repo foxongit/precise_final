@@ -4,12 +4,12 @@ from .query_enricher import query_enricher_func
 from .pii_masker import pii_masker_func
 from .llm_answerer import call_llm
 from .unmasking import unmask_llm_response_simple
-from typing import List, Dict
-from langchain_google_genai import ChatGoogleGenerativeAI
+from typing import List, Dict, Union
 from src.core.config import settings
 from .working_agentic import AgenticFormulaSystem
 from .final_response import generate_final_response, generate_direct_response
 from langchain_openai import ChatOpenAI
+import re
 
 class RAGPipeline:
     def __init__(self):
@@ -124,6 +124,8 @@ class RAGPipeline:
             unmasked_result = unmask_llm_response_simple(llm1Response)
             print("Unmasked Result:\n", unmasked_result)
 
+            originalResult = None
+            scaledResult = None
             # Check if unmasked result has the required fields
             if not isinstance(unmasked_result, dict) or 'formula' not in unmasked_result or 'variables' not in unmasked_result:
                 print("Warning: Unmasked result does not contain formula or variables. Skipping agentic processing.")
@@ -167,8 +169,6 @@ class RAGPipeline:
                 except Exception as e:
                     print(f"Error in agentic processing: {e}")
                     computeResponse = {"error": str(e)}
-                    originalResult = None
-                    scaledResult = None
 
             print("Worksayush###########################################")
 
@@ -185,14 +185,25 @@ class RAGPipeline:
                     print(f"ERROR in generate_final_response: {e}")
                     scaledResponse = f"Final response generation failed: {str(e)}"
 
-                def replace_value_in_text(text, new_value):
-                # Format the new value with commas
-                    formatted_value = f"{new_value:,}"
-                # Replace the old value with the new formatted value
-                    updated_text = text.replace("32,000,000,000", formatted_value)
-                    return updated_text
+                print("originalResult:", originalResult)
+                print("scaledResult:", scaledResult)
 
-                unscaledResponse = replace_value_in_text(scaledResponse, originalResult)
+
+                def replace_scaled_number_robust(text: str, original_number: Union[int, float], scaled_number: Union[int, float], tolerance: float = 1e-6) -> str:
+                    """
+                    Replace scaled number in text with original number, allowing for minor floating point differences.
+                    """
+                    scaled_str = str(scaled_number)
+                    original_str = str(original_number)
+                    print(f"DEBUG: Replacing {scaled_str} with {original_str} ")
+
+                    # Use regex to replace numbers with a tolerance for floating point precision
+                    pattern = re.compile(r'\b' + re.escape(scaled_str) + r'\b')
+                    modified_text = pattern.sub(original_str, text)
+
+                    return modified_text
+
+                unscaledResponse = replace_scaled_number_robust(scaledResponse, originalResult, scaledResult)
                 print("Unscaled Response:\n", unscaledResponse)
             else:
                 scaledResponse = "Agentic processing failed or no formula detected"
