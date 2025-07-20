@@ -229,6 +229,19 @@ export const sessionsApi = {
     return response_data;
   },
 
+  // Save complete conversation (user message + AI response in single row)
+  saveConversationPair: async (sessionId: string, prompt: string, response: string): Promise<any> => {
+    const userId = await getUserId();
+    if (!userId) throw new Error('User not authenticated');
+    
+    const response_data = await api.post(`/sessions/${sessionId}/chat-log`, {
+      user_id: userId,
+      prompt,
+      response
+    });
+    return response_data;
+  },
+
   // Delete session
   deleteSession: async (sessionId: string): Promise<any> => {
     const userId = await getUserId();

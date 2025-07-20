@@ -473,6 +473,13 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     return words.join(' ') + (message.split(' ').length > 3 ? '...' : '');
   };
 
+  // Helper function to safely convert any value to a truncated string
+  const safeStringify = (value: any, maxLength: number = 200): string => {
+    if (value === null || value === undefined) return 'Not available';
+    const str = typeof value === 'string' ? value : JSON.stringify(value);
+    return str.length > maxLength ? `${str.substring(0, maxLength)}...` : str;
+  };
+
   const findMentionedDocuments = (message: string): string[] => {
     const mentionedDocuments: string[] = [];
     
@@ -995,6 +1002,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           
           try {
             // Step 3: Document retrieval
+            addProcessStep('enrich', 'completed', 'Query enrichment completed');
             addProcessStep('retrieve', 'in-progress', `Retrieving relevant content from ${selectedDocIds.length} documents...`);
             
             const queryResponse = await queryApi.submitQuery(queryRequest);
@@ -1016,77 +1024,142 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               // Add detailed transparency steps for ActivityLog
               addProcessStep('transparency', 'in-progress', 'Processing response details...');
               
-              // Add user query details (using correct property names)
-              addProcessStep('user_query', 'completed', `User Query: "${responseData.user_query || responseData.original_query || 'N/A'}"`);
+              // Phase 1: Query Processing
+              addProcessStep('original_query', 'completed', `Original Query: "${responseData.user_query || responseData.original_query || userMessage}"`);
               
-              // Add transformed query details
-              const transformedQuery = responseData.transformed_query || responseData.enriched_query;
-              const userQuery = responseData.user_query || responseData.original_query;
-              if (transformedQuery && transformedQuery !== userQuery) {
-                addProcessStep('transformed_query', 'completed', `Transformed Query: "${transformedQuery}"`);
+              const enrichedQuery = responseData.transformed_query || responseData.enriched_query;
+              if (enrichedQuery && enrichedQuery !== (responseData.user_query || responseData.original_query)) {
+                addProcessStep('enriched_query', 'completed', `Enriched Query: "${enrichedQuery}"`);
+              } else {
+                addProcessStep('enriched_query', 'completed', 'No query enrichment applied');
               }
               
-              // Add retrieved chunks info
+              // Phase 2: Document Retrieval & Chunking
               const retrievedChunks = responseData.retrieved_chunks;
               if (retrievedChunks && Array.isArray(retrievedChunks) && retrievedChunks.length > 0) {
-                addProcessStep('retrieved_chunks', 'completed', `Retrieved ${retrievedChunks.length} relevant chunks from documents`);
-                retrievedChunks.forEach((chunk: any, index: number) => {
+                addProcessStep('retrieved_chunks', 'completed', `Retrieved Chunks: ${retrievedChunks.length} chunks from documents`);
+                // Show first few chunks as examples
+                retrievedChunks.slice(0, 3).forEach((chunk: any, index: number) => {
                   const chunkText = typeof chunk === 'string' ? chunk : chunk.content || chunk.text || 'No content';
-                  addProcessStep(`chunk_${index}`, 'completed', `Chunk ${index + 1}: "${chunkText.substring(0, 100)}..."`);
+                  addProcessStep(`chunk_detail_${index}`, 'completed', `Chunk ${index + 1}: "${chunkText.substring(0, 150)}..."`);
                 });
               } else if (typeof retrievedChunks === 'string') {
-                addProcessStep('retrieved_chunks', 'completed', `Retrieved chunks: ${retrievedChunks}`);
+                addProcessStep('retrieved_chunks', 'completed', `Retrieved Chunks: ${retrievedChunks}`);
               } else {
-                addProcessStep('retrieved_chunks', 'completed', 'No chunks retrieved (no documents selected)');
+                addProcessStep('retrieved_chunks', 'completed', 'Retrieved Chunks: No chunks retrieved');
               }
               
-              // Add masked chunks info
               const maskedChunks = responseData.masked_chunks;
               if (maskedChunks && Array.isArray(maskedChunks) && maskedChunks.length > 0) {
-                addProcessStep('masked_chunks', 'completed', `Applied privacy masking to ${maskedChunks.length} chunks`);
+                addProcessStep('masked_chunks', 'completed', `Masked Chunks: Applied privacy masking to ${maskedChunks.length} chunks`);
               } else if (typeof maskedChunks === 'string') {
-                addProcessStep('masked_chunks', 'completed', `Masked chunks: ${maskedChunks}`);
+                addProcessStep('masked_chunks', 'completed', `Masked Chunks: ${maskedChunks}`);
+              } else {
+                addProcessStep('masked_chunks', 'completed', 'Masked Chunks: No masking applied');
               }
               
-              // Add response details (using correct property names)
+              // Phase 3: Response Generation
               const maskedResponse = responseData.maskedResponse || responseData.masked_response;
               if (maskedResponse) {
-                addProcessStep('masked_response', 'completed', `Masked Response: "${maskedResponse}"`);
+                addProcessStep('masked_response', 'completed', `Masked Response: "${safeStringify(maskedResponse)}"`);
+              } else {
+                addProcessStep('masked_response', 'completed', 'Masked Response: No masking applied');
               }
               
               const unmaskedResponse = responseData.unmasked_response;
-              if (unmaskedResponse && unmaskedResponse !== maskedResponse) {
-                addProcessStep('unmasked_response', 'completed', `Unmasked Response: "${unmaskedResponse}"`);
+              if (unmaskedResponse) {
+                addProcessStep('unmasked_response', 'completed', `Unmasked Response: "${safeStringify(unmaskedResponse)}"`);
+              } else {
+                addProcessStep('unmasked_response', 'completed', 'Unmasked Response: Not available');
               }
               
-              const scaledResponse = responseData.scaled_response || responseData.response;
+              // Phase 4: Scaling & Final Processing
+              const scaledResponse = responseData.scaled_response;
               if (scaledResponse) {
-                addProcessStep('scaled_response', 'completed', `Final Response: "${scaledResponse}"`);
+                addProcessStep('scaled_result', 'completed', `Scaled Result: "${safeStringify(scaledResponse)}"`);
+              } else {
+                addProcessStep('scaled_result', 'completed', 'Scaled Result: Not available');
               }
               
               const unscaledResponse = responseData.unscaled_response;
-              if (unscaledResponse && unscaledResponse !== scaledResponse) {
-                addProcessStep('unscaled_response', 'completed', `Unscaled Response: "${unscaledResponse}"`);
+              if (unscaledResponse) {
+                addProcessStep('unscaled_result', 'completed', `Unscaled Result: "${safeStringify(unscaledResponse)}"`);
+              } else {
+                addProcessStep('unscaled_result', 'completed', 'Unscaled Result: Not available');
               }
               
-              // Add processed docs info
-              if (responseData.processed_docs && responseData.processed_docs.length > 0) {
-                addProcessStep('processed_docs', 'completed', `Processed ${responseData.processed_docs.length} documents: ${responseData.processed_docs.join(', ')}`);
+              // Formula Generation Check
+              const formulaGenerated = responseData.formula_generated || responseData.has_formula || false;
+              addProcessStep('formula_check', 'completed', `Formula Generated: ${formulaGenerated ? 'Yes' : 'No'}`);
+              
+              // Retrieved Metadata
+              const metadata = responseData.retrieved_metadata || responseData.metadata;
+              if (metadata) {
+                addProcessStep('retrieved_metadata', 'completed', `Retrieved Metadata: ${safeStringify(metadata, 150)}`);
+              } else {
+                addProcessStep('retrieved_metadata', 'completed', 'Retrieved Metadata: None');
               }
+              
+              // Processed Documents
+              if (responseData.processed_docs && responseData.processed_docs.length > 0) {
+                addProcessStep('processed_docs', 'completed', `Processed Documents: ${responseData.processed_docs.length} documents - ${responseData.processed_docs.join(', ')}`);
+              } else {
+                addProcessStep('processed_docs', 'completed', 'Processed Documents: None');
+              }
+              
+              // Chat Log ID (will be available after saving)
+              addProcessStep('chat_log_pending', 'in-progress', 'Chat Log ID: Saving conversation...');
               
               addProcessStep('transparency', 'completed', 'Response details processed for transparency');
               addProcessStep('response', 'completed', 'AI response generated successfully');
+              
+              // Save the AI response and capture chat log ID
+              const aiResponse = responseData.scaled_response || responseData.response || "I'm having trouble processing your request right now. Please try again.";
+              console.log('Saving AI response to database');
+              
+              try {
+                const saveResponse = await sessionsApi.saveAIResponse(conversationId, aiResponse);
+                // Try to extract chat log ID from response
+                let chatLogId = 'Unknown';
+                if (saveResponse && saveResponse.data) {
+                  chatLogId = saveResponse.data.id || saveResponse.data.chat_log_id || saveResponse.data.chatLogId || 'Generated';
+                }
+                // Update the pending chat log step
+                addProcessStep('chat_log_pending', 'completed', `Chat Log ID: ${chatLogId}`);
+                addProcessStep('final_status', 'completed', 'Query processed successfully');
+              } catch (saveError) {
+                console.error('Failed to save AI response:', saveError);
+                addProcessStep('chat_log_pending', 'error', 'Chat Log ID: Failed to save');
+                addProcessStep('final_status', 'error', 'Failed to save response to database');
+              }
             } else {
               console.error('Invalid response structure:', queryResponse);
-              addProcessStep('response', 'error', 'Failed to generate AI response');
+              addProcessStep('response', 'error', 'Failed to generate AI response - Invalid response structure');
               // Save a default response if AI doesn't respond
-              await sessionsApi.saveAIResponse(conversationId, "I'm having trouble processing your request right now. Please try again.");
+              try {
+                await sessionsApi.saveAIResponse(conversationId, "I'm having trouble processing your request right now. Please try again.");
+                addProcessStep('chat_log_pending', 'completed', 'Error response saved to database');
+                addProcessStep('final_status', 'error', 'Query failed - Invalid API response');
+              } catch (saveError) {
+                addProcessStep('chat_log_pending', 'error', 'Failed to save error response');
+                addProcessStep('final_status', 'error', 'Query failed - Unable to save response');
+              }
             }
           } catch (apiError) {
             console.error('API call failed:', apiError);
-            addProcessStep('response', 'error', 'API call failed');
+            addProcessStep('enrich', 'error', 'Query enrichment failed');
+            addProcessStep('retrieve', 'error', 'Document retrieval failed');
+            addProcessStep('response', 'error', `API call failed: ${(apiError as Error).message || 'Network error'}`);
+            
             // Save an error response if the API fails
-            await sessionsApi.saveAIResponse(conversationId, "Please upload a document to continue querying.");
+            try {
+              await sessionsApi.saveAIResponse(conversationId, "Please upload a document to continue querying.");
+              addProcessStep('chat_log_pending', 'completed', 'Error response saved to database');
+              addProcessStep('final_status', 'error', 'Query failed - API unavailable');
+            } catch (saveError) {
+              addProcessStep('chat_log_pending', 'error', 'Failed to save error response');
+              addProcessStep('final_status', 'error', 'Query failed - Unable to save response');
+            }
           }
         } else {
           // Fallback response when no documents are selected or backend unavailable
@@ -1094,12 +1167,30 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           
           if (selectedDocIds.length === 0) {
             console.log("No documents selected, saving general response");
-            await sessionsApi.saveAIResponse(conversationId, "I'd be happy to help! Please upload some documents so I can provide more specific assistance, or ask me a general question.");
-            addProcessStep('response', 'completed', 'General response provided');
+            addProcessStep('chat_log_pending', 'in-progress', 'Saving general response...');
+            try {
+              await sessionsApi.saveAIResponse(conversationId, "I'd be happy to help! Please upload some documents so I can provide more specific assistance, or ask me a general question.");
+              addProcessStep('response', 'completed', 'General response provided');
+              addProcessStep('chat_log_pending', 'completed', 'General response saved to database');
+              addProcessStep('final_status', 'completed', 'Query completed with general response');
+            } catch (saveError) {
+              addProcessStep('response', 'error', 'Failed to save general response');
+              addProcessStep('chat_log_pending', 'error', 'Failed to save general response');
+              addProcessStep('final_status', 'error', 'Failed to complete query');
+            }
           } else {
             console.log("Backend unavailable, saving error response");
-            await sessionsApi.saveAIResponse(conversationId, "I'm currently unable to process your request. Please check your connection and try again.");
-            addProcessStep('response', 'error', 'Backend unavailable');
+            addProcessStep('chat_log_pending', 'in-progress', 'Saving error response...');
+            try {
+              await sessionsApi.saveAIResponse(conversationId, "I'm currently unable to process your request. Please check your connection and try again.");
+              addProcessStep('response', 'error', 'Backend unavailable');
+              addProcessStep('chat_log_pending', 'completed', 'Error response saved to database');
+              addProcessStep('final_status', 'error', 'Query failed - Backend unavailable');
+            } catch (saveError) {
+              addProcessStep('response', 'error', 'Backend unavailable');
+              addProcessStep('chat_log_pending', 'error', 'Failed to save error response');
+              addProcessStep('final_status', 'error', 'Query failed completely');
+            }
           }
         }
         
