@@ -409,11 +409,9 @@ export const queryApi = {
       // Deduplicate document IDs first
       const uniqueDocIds = Array.from(new Set(request.doc_ids || []));
       
-      // Verify document IDs exist on the server
-      const validDocIds = await documentsApi.verifyDocumentIds(uniqueDocIds);
-      
-      // Always allow queries even with no documents (for general questions)
-      console.log(`Query validation: ${validDocIds.length} valid documents out of ${uniqueDocIds.length} requested`);
+      // Skip document verification - let the backend handle invalid documents
+      // This avoids issues when server restarts and document status is lost from memory
+      console.log(`Submitting query with ${uniqueDocIds.length} document(s)`);
       
       // Create a properly structured payload matching Postman's successful format
       // Parameter order matters: query, user_id, session_id, doc_ids, k
@@ -421,7 +419,7 @@ export const queryApi = {
         query: request.query,
         user_id: userId,
         session_id: request.session_id,
-        doc_ids: validDocIds, // Use valid document IDs (may be empty array)
+        doc_ids: uniqueDocIds, // Use all requested document IDs
         k: request.k || 4
       };
       
