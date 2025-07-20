@@ -136,7 +136,7 @@ class RAGPipeline:
                 # Generate direct response when computation is not needed
                 direct_response = generate_direct_response(
                     enriched_query,
-                    masked_chunks,
+                    unmasked_result,
                     self.llm)
                 print("Direct Response Generated:", direct_response)
                 return {
