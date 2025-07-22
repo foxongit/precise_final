@@ -81,7 +81,7 @@ export default function Sidebar({
           // Expanded layout - normal header
           <>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-lg font-Poppins text-white">Precise.ai</span>
+              <span className="text-lg font-Poppins text-white">Precise-ai</span>
               <button
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                 className="p-2 hover:bg-gray-700 rounded transition-colors"

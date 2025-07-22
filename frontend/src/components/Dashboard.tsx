@@ -903,7 +903,69 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           }
         });
       };
-      
+ 
+// Function to process query API response and add formula information
+      const processQueryResponse = (responseData: any) => {
+        if (!responseData) return;
+ 
+        try {
+          // Check for formula generation
+          let hasFormula = false;
+          let formulaText = '';
+ 
+          // Check unmasked_response for computeNeeded
+          if (responseData.unmasked_response && typeof responseData.unmasked_response === 'object') {
+            const computeNeeded = responseData.unmasked_response.computeNeeded;
+            if (computeNeeded === 'True' || computeNeeded === true) {
+              hasFormula = true;
+              formulaText = responseData.unmasked_response.formula || '';
+            }
+          }
+ 
+          // Check maskedResponse for computeNeeded (fallback)
+          if (!hasFormula && responseData.maskedResponse) {
+            try {
+              let maskedData;
+              if (typeof responseData.maskedResponse === 'string') {
+                // Parse JSON if it's a string
+                const jsonMatch = responseData.maskedResponse.match(/```json\s*(.*?)\s*```/s);
+                if (jsonMatch) {
+                  maskedData = JSON.parse(jsonMatch[1]);
+                } else {
+                  maskedData = JSON.parse(responseData.maskedResponse);
+                }
+              } else {
+                maskedData = responseData.maskedResponse;
+              }
+ 
+              if (maskedData && maskedData.computeNeeded === 'True') {
+                hasFormula = true;
+                formulaText = maskedData.formula || '';
+              }
+            } catch (e) {
+              console.log('Could not parse maskedResponse for formula detection:', e);
+            }
+          }
+ 
+          // Add formula generation step
+          if (hasFormula) {
+            addProcessStep('formula_generated', 'completed', 'Formula Generated: Yes');
+            if (formulaText) {
+              addProcessStep('formula_display', 'completed', `Formula: ${formulaText}`);
+            }
+          } else {
+            addProcessStep('formula_generated', 'completed', 'Formula Generated: No');
+          }
+        } catch (e) {
+          console.error('Error processing query response:', e);
+          addProcessStep('formula_generated', 'error', 'Error checking for formula generation');
+        }
+      };
+ 
+ 
+ 
+ 
+ 
       // Step 1: Initialize query
       addProcessStep('query', 'in-progress', 'Processing user query...');
       
@@ -947,7 +1009,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           });
         }
       }
-
+      
       // Complete query step
       addProcessStep('query', 'completed', 'Query initialized successfully');
 
@@ -990,7 +1052,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           
           try {
             // Step 3: Document retrieval
-            addProcessStep('enrich', 'completed', 'Query enrichment completed');
+            // addProcessStep('enrich', 'completed', 'Query enrichment completed');
             addProcessStep('retrieve', 'in-progress', `Retrieving relevant content from ${selectedDocIds.length} documents...`);
             
             const queryResponse = await queryApi.submitQuery(queryRequest);
@@ -1008,7 +1070,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             if (queryResponse && queryResponse.data) {
               const responseData: any = queryResponse.data;
               console.log('AI response extracted:', responseData.scaled_response || responseData.response);
-              
+              processQueryResponse(responseData);
               // Add detailed transparency steps for ActivityLog
               addProcessStep('transparency', 'in-progress', 'Processing response details...');
               
@@ -1077,8 +1139,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               }
               
               // Formula Generation Check
-              const formulaGenerated = responseData.formula_generated || responseData.has_formula || false;
-              addProcessStep('formula_check', 'completed', `Formula Generated: ${formulaGenerated ? 'Yes' : 'No'}`);
+              // const formulaGenerated = responseData.formula_generated || responseData.has_formula || false;
+              // addProcessStep('formula_check', 'completed', `Formula Generated: ${formulaGenerated ? 'Yes' : 'No'}`);
               
               // Retrieved Metadata
               const metadata = responseData.retrieved_metadata || responseData.metadata;
@@ -1454,7 +1516,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         {/* Header */}
        <div className={`p-4 bg-white flex-shrink-0 flex items-center justify-between transition-all duration-200 ${isScrolled ? 'border-b border-gray-200 shadow-sm' : '' }`}>
           <div className="flex items-center space-x-3">
-            <h2 className="text-4xl top-0 font-Poppins font-semibold  bg-gradient-to-l from-purple-500  to-black  bg-clip-text text-transparent">Precise.ai</h2>
+            <h2 className="text-4xl top-0 font-Poppins font-semibold  bg-gradient-to-l from-purple-500  to-black  bg-clip-text text-transparent">Precise-ai</h2>
           </div>
         </div>
 

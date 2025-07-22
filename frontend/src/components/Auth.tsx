@@ -122,7 +122,7 @@ export default function Auth({ onLogin }: AuthProps) {
                   {/* <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
                     <div className="w-3 h-3 bg-white rounded-full"></div>
                   </div> */}
-                  <span className="text-black text-xl font-semibold">Precise.ai</span>
+                  <span className="text-black text-xl font-semibold">Precise-ai</span>
                 </div>
               </div>
 
