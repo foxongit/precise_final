@@ -654,6 +654,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       return;
     }
     
+    // Clear document selections and close document viewer when switching chats
+    setSelectedDocumentsForAnalysis([]);
+    setSelectedDocument(null);
+    
     // Set loading state immediately when switching
     setIsSwitchingChat(true);
     setCurrentConversationId(chat.id);
@@ -1521,10 +1525,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         </div>
 
         {/* Split Pane Content */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden min-h-0">
           {/* Chat Area */}
           <div 
-            className={`chat-area-container flex flex-col bg-white min-w-0 transition-all duration-75 ease-out ${
+            className={`chat-area-container flex flex-col bg-white min-w-0 min-h-0 transition-all duration-75 ease-out ${
               isResizing || isResizingActivityLog ? 'transition-none' : ''
             }`}
             style={{ 
@@ -1535,9 +1539,9 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   : '100%' 
             }}
           >
-            <div className="h-full flex flex-col bg-white">
+            <div className="h-full flex flex-col bg-white min-h-0">
               {/* Messages Area or Welcome Screen */}
-              <div className="messages-container flex-1 overflow-y-auto p-4 scrollbar-gutter-stable">
+              <div className="messages-container flex-1 overflow-y-auto p-4 scrollbar-gutter-stable min-h-0">
                 {shouldShowWelcomeScreen ? (
                   <div className="h-full flex flex-col items-center justify-center space-y-6 max-w-xl mx-auto">
                     <div className="text-center space-y-3">
