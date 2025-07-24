@@ -53,43 +53,44 @@ Generate a final response that combines the calculated result to answer the user
         return f"Final response generation failed: {str(e)}"
 
 
-def generate_direct_response(enriched_query: str, masked_chunks: str, llm) -> str:
+def generate_direct_response(enriched_query: str, unmasked_result: str, llm) -> str:
     try:
         prompt = f"""
 You are a helpful assistant that provides direct answers from the given context.
-
+ 
 USER QUERY: {enriched_query}
-
-CONTEXT (contains masked values like MONEY_1, PERCENT_1):
-{masked_chunks}
-
+ 
+CONTEXT (unmasked financial data):
+{unmasked_result}
+ 
 INSTRUCTIONS:
 1. Answer the query using ONLY the information from the context
-2. Use the masked values (like MONEY_1) directly in your response - DO NOT try to unmask them
-3. Be specific and reference the exact parts of the context you're using
-4. If you see values like MONEY_1, use them exactly as they appear
-5. Keep your response clear and focused on the query
-6. If you can't find relevant information in the context, say so
-7. Use natural language but keep the masked values intact
-
-Remember: Never try to calculate or modify the masked values. Use them exactly as they appear in the context.
+2. Use the actual numerical values from the unmasked data in your response
+3. DO NOT include any variable names like MONEY_1, PERCENT_1, etc. in your final response
+4. Convert any remaining masked variables to their actual values before responding
+5. Provide specific numerical answers using the real values from the context
+6. Keep your response clear, natural, and focused on the query
+7. If you can't find relevant information in the context, say so
+8. Use natural language with actual numbers, not variable placeholders
+ 
+Remember: Your response should contain real numerical values, not masked variable names like MONEY_1, PERCENT_1, etc.
 """
         # Convert to LangChain message format for better handling
         from langchain_core.messages import SystemMessage, HumanMessage
-        
+       
         langchain_messages = [
             SystemMessage(content=prompt)
         ]
-        
+       
         # Generate response using LLM
         response = llm.invoke(langchain_messages)
         final_text = response.content.strip() if hasattr(response, 'content') else str(response).strip()
-        
+       
         if not final_text:
             return "Direct response generation failed: Empty response received"
-            
+           
         return final_text
-        
+       
     except Exception as e:
         print(f"Error in generate_direct_response: {e}")
         return f"Direct response generation failed: {str(e)}"
