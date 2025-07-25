@@ -16,28 +16,86 @@ Output Requirements:
 IMPORTANT: Respond ONLY with a valid JSON object containing exactly these fields:
 {
     "title": "brief description of calculation",
-    "formula": "mathematical formula using variable names",
+    "formula": "mathematical formula using STANDARDIZED variable names",
     "variables": {
-        "variable_name": "MONEY_1 or other masked value"
+        "standardized_variable_name": "MONEY_1 or other masked value"
     },
-    "computeNeeded": "True or False",
     "computeNeeded": "True or False"
 }
 
+CRITICAL VARIABLE NAMING STANDARDS:
+Use these EXACT standardized variable names to ensure function reuse:
+
+Financial Terms:
+- "revenue" for: income, sales, turnover, receipts, earnings, gross_revenue, total_revenue
+- "expenses" for: costs, expenditure, spending, outflows, charges, total_expenses, total_costs
+- "profit" for: earnings, income_after_tax, net_income, surplus, gain, net_profit
+- "cost" for: expense, expenditure, outlay, charge, fee, unit_cost
+- "operating_expenses" for: opex, operational_costs, operating_costs, running_costs
+- "miscellaneous_income" for: misc_income, other_income, additional_income, sundry_income
+- "tax" for: taxes, taxation, levy, duty, tax_amount
+- "assets" for: holdings, property, resources, capital, total_assets
+- "liabilities" for: debts, obligations, payables, owing, total_liabilities
+- "equity" for: ownership, capital, net_worth, shareholders_equity
+
+Additional Standards:
+- Use "rate" for interest rates, growth rates, percentages
+- Use "principal" for initial amounts, base amounts
+- Use "years" or "period" for time periods
+- Use "quantity" for counts, units, volumes
+- Use "price" for unit prices, cost per unit
+
 Critical Rules:
 1. Use EXACT masked values and ALWAYS wrap them in quotes: "MONEY_1", "PERCENT_1"
-2. Use proper JSON syntax:
+2. Use STANDARDIZED variable names from the list above
+3. Use proper JSON syntax:
    - Use double quotes for ALL strings, including masked values
    - Every MONEY_X, PERCENT_X must be in quotes like "MONEY_1"
    - No trailing commas
    - No comments
    - No line breaks in values
-3. Keep formulas simple and clear
-4. Variables must match the formula exactly
-5. IMPORTANT: Never use bare MONEY_X values - always use "MONEY_X"
-6.IMPOPRTANT: computeNeeded must be "True" if the query requires computation, "False" if it does not
+4. Keep formulas simple and clear using standardized names
+5. CRITICAL: ALL variables used in the formula MUST be present in the variables object
+6. CRITICAL: NO extra variables should be in the variables object that aren't used in the formula
+7. CRITICAL: ALL calculations must be done within the formula itself - no separate computation steps
+8. Variables must match the formula exactly - every variable in formula must have corresponding entry in variables
+9. IMPORTANT: Never use bare MONEY_X values - always use "MONEY_X"
+10. IMPORTANT: computeNeeded must be "True" if query requires computation based on Masked Chunks, "False" if it does not
 
-Example of CORRECT JSON response:
+Example of CORRECT JSON response with standardized names:
+{
+    "title": "Net Profit Calculation",
+    "formula": "revenue - expenses",
+    "variables": {
+        "revenue": "MONEY_1",
+        "expenses": "MONEY_2"
+    },
+    "computeNeeded": "True"
+}
+
+Example of CORRECT response with complex calculation using standardized names:
+{
+    "title": "ROI Percentage Calculation",
+    "formula": "((revenue - cost) / cost) * 100",
+    "variables": {
+        "revenue": "MONEY_1",
+        "cost": "MONEY_2"
+    },
+    "computeNeeded": "True"
+}
+
+Example of CORRECT response for profit margin using standardized names:
+{
+    "title": "Profit Margin Calculation",
+    "formula": "(profit / revenue) * 100",
+    "variables": {
+        "profit": "MONEY_1",
+        "revenue": "MONEY_2"
+    },
+    "computeNeeded": "True"
+}
+
+Example of INCORRECT response (non-standardized variable names):
 {
     "title": "Net Revenue Calculation",
     "formula": "gross_revenue - total_expenses",
@@ -48,24 +106,25 @@ Example of CORRECT JSON response:
     "computeNeeded": "True"
 }
 
-Example of INCORRECT response (missing quotes around MONEY values):
+Should be:
 {
     "title": "Net Revenue Calculation",
-    "formula": "gross_revenue - total_expenses",
+    "formula": "revenue - expenses",
     "variables": {
-        "gross_revenue": MONEY_1,
-        "total_expenses": MONEY_2
+        "revenue": "MONEY_1",
+        "expenses": "MONEY_2"
     },
     "computeNeeded": "True"
 }
 
-Example of CORRECT response with array:
+Example of INCORRECT response (extra variable not used in formula):
 {
-    "title": "Total Profit Calculation",
-    "formula": "revenue - sum(costs)",
+    "title": "Net Profit",
+    "formula": "revenue - expenses",
     "variables": {
         "revenue": "MONEY_1",
-        "costs": ["MONEY_2", "MONEY_3", "MONEY_4"]
+        "expenses": "MONEY_2",
+        "tax_rate": "PERCENT_1"
     },
     "computeNeeded": "True"
 }

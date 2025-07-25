@@ -27,6 +27,10 @@ MANIFEST
 *.spec
 
 .venv
+venv/
+
+functions11.db
+mappings/entity_mapping.json
 
 # Installer logs
 pip-log.txt

@@ -25,10 +25,18 @@ class RAGPipeline:
             temperature=0.1
             )
         except Exception as e:
-            print(f"Error initializing Gemini API: {e}")
-            raise Exception(f"Failed to initialize Gemini API. Please check your GOOGLE_API_KEY: {e}")
+            print(f"Error initializing OpenAI API: {e}")
+            raise Exception(f"Failed to initialize OpenAI API. Please check your OPENAI_API_KEY: {e}")
         
         self.document_manager = document_manager
+        
+        # Initialize agentic system once instead of creating new instances
+        try:
+            self.agentic_system = AgenticFormulaSystem()
+            print("✅ Agentic Formula System initialized successfully")
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to initialize Agentic Formula System: {e}")
+            self.agentic_system = None
     
     def convert_string_to_numeric(self, value: str) -> float:
         """Convert string values like '$ 184,62431' to numeric values"""
@@ -126,6 +134,20 @@ class RAGPipeline:
 
             originalResult = None
             scaledResult = None
+            function_reused = False
+            function_generated = False
+            specific_function_used = None
+            specific_function_formula = None
+            function_bank = []
+            
+            # Get function bank from agentic system
+            if self.agentic_system is not None:
+                try:
+                    function_bank = self.agentic_system.get_all_functions()
+                except Exception as e:
+                    print(f"Warning: Could not retrieve function bank: {e}")
+                    function_bank = []
+            
             # Check if unmasked result has the required fields
             if not isinstance(unmasked_result, dict) or 'formula' not in unmasked_result or 'variables' not in unmasked_result:
                 print("Warning: Unmasked result does not contain formula or variables. Skipping agentic processing.")
@@ -135,8 +157,8 @@ class RAGPipeline:
             elif "computeNeeded" in unmasked_result and unmasked_result['computeNeeded'] == "False":
                 # Generate direct response when computation is not needed
                 direct_response = generate_direct_response(
-                    enriched_query,
-                    masked_chunks,
+                    query,
+                    unmasked_result,
                     self.llm)
                 print("Direct Response Generated:", direct_response)
                 return {
@@ -153,7 +175,12 @@ class RAGPipeline:
                     "response_type": "direct",
                     "scaled_response": direct_response,  # Use direct response for both scaled and unscaled
                     "unscaled_response": direct_response,
-                    "phase2": {"message": "No computation needed for this query"}
+                    "phase2": {"message": "No computation needed for this query"},
+                    "function_reused": False,
+                    "function_generated": False,
+                    "specific_function_used": None,
+                    "specific_function_formula": None,
+                    "function_bank": function_bank
                 }
             else:
                 # Convert variables to numeric format for agentic processing
@@ -161,14 +188,58 @@ class RAGPipeline:
                 print(f"DEBUG: Processed variables for agentic: {processed_variables}")
 
                 try:
-                    system=AgenticFormulaSystem()
-                    computeResponse = system.process_formula(unmasked_result['formula'], processed_variables)
-                    print(f"DEBUG: computeResponse = {computeResponse}")
-                    originalResult=computeResponse['original_result']
-                    scaledResult=computeResponse['scaled_result']
+                    if self.agentic_system is None:
+                        print("ERROR: Agentic system not initialized")
+                        computeResponse = {"error": "Agentic system not initialized"}
+                        function_reused = False
+                        function_generated = False
+                        specific_function_used = None
+                        specific_function_formula = None
+                    else:
+                        computeResponse = self.agentic_system.process_formula(unmasked_result['formula'], processed_variables)
+                        print(f"DEBUG: computeResponse = {computeResponse}")
+                        
+                        # Handle function reuse responses
+                        if computeResponse.get('status') == 'formula_conflict':
+                            print(f"WARNING: Formula conflict detected - {computeResponse.get('message')}")
+                            # Handle unresolved conflicts
+                            originalResult = None
+                            scaledResult = None
+                            function_reused = False
+                            function_generated = False
+                            specific_function_used = None
+                            specific_function_formula = None
+                        elif computeResponse.get('status') == 'conflict_resolved':
+                            print(f"INFO: Conflict resolved by creating variant: {computeResponse.get('function_name')}")
+                            originalResult = computeResponse['original_result']
+                            scaledResult = computeResponse['scaled_result']
+                            function_reused = False  # Not reused, but conflict resolved
+                            function_generated = True  # New variant function created
+                            specific_function_used = computeResponse.get('function_name')
+                            specific_function_formula = computeResponse.get('formula')
+                        elif computeResponse.get('reused'):
+                            print(f"INFO: Reused existing function: {computeResponse.get('function_name')}")
+                            originalResult = computeResponse['original_result']
+                            scaledResult = computeResponse['scaled_result']
+                            function_reused = True
+                            function_generated = False
+                            specific_function_used = computeResponse.get('function_name')
+                            specific_function_formula = computeResponse.get('formula')
+                        else:
+                            # New function created
+                            originalResult = computeResponse['original_result']
+                            scaledResult = computeResponse['scaled_result']
+                            function_reused = False
+                            function_generated = True
+                            specific_function_used = computeResponse.get('function_name')
+                            specific_function_formula = computeResponse.get('formula')
                 except Exception as e:
                     print(f"Error in agentic processing: {e}")
                     computeResponse = {"error": str(e)}
+                    function_reused = False
+                    function_generated = False
+                    specific_function_used = None
+                    specific_function_formula = None
 
             print("Worksayush###########################################")
 
@@ -176,7 +247,7 @@ class RAGPipeline:
             if scaledResult is not None:
                 try:
                     scaledResponse = generate_final_response(
-                    enriched_query,
+                    query,
                     scaledResult,
                     self.llm
                     )
@@ -221,7 +292,12 @@ class RAGPipeline:
                 "scaled_response": scaledResponse,
                 "unscaled_response": unscaledResponse,
                 "retrieved_metadata": retrieved_metadata,
-                "processed_docs": doc_ids
+                "processed_docs": doc_ids,
+                "function_reused": function_reused,
+                "function_generated": function_generated,
+                "specific_function_used": specific_function_used,
+                "specific_function_formula": specific_function_formula,
+                "function_bank": function_bank
             }
             
         except Exception as e:
