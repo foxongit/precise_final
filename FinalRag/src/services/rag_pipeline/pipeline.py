@@ -206,8 +206,8 @@ class RAGPipeline:
                 unscaledResponse = replace_scaled_number_robust(scaledResponse, originalResult, scaledResult)
                 print("Unscaled Response:\n", unscaledResponse)
             else:
-                scaledResponse = "Agentic processing failed or no formula detected"
-                unscaledResponse = "Agentic processing failed or no formula detected"
+                scaledResponse = "No relevant data points found in the document"
+                unscaledResponse = "No relevant data points found in the document"
             
             return {
                 "status": "success",
