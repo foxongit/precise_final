@@ -72,7 +72,7 @@ INSTRUCTIONS:
 6. Keep your response clear, natural, and focused on the query
 7. If you can't find relevant information in the context, say so
 8. Use natural language with actual numbers, not variable placeholders
- 
+
 Remember: Your response should contain real numerical values, not masked variable names like MONEY_1, PERCENT_1, etc.
 """
         # Convert to LangChain message format for better handling
