@@ -1056,7 +1056,6 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           
           try {
             // Step 3: Document retrieval
-            // addProcessStep('enrich', 'completed', 'Query enrichment completed');
             addProcessStep('retrieve', 'in-progress', `Retrieving relevant content from ${selectedDocIds.length} documents...`);
             
             const queryResponse = await queryApi.submitQuery(queryRequest);
@@ -1074,6 +1073,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             if (queryResponse && queryResponse.data) {
               const responseData: any = queryResponse.data;
               console.log('AI response extracted:', responseData.scaled_response || responseData.response);
+              
+              // Mark enrichment as completed only after response is received
+              addProcessStep('enrich', 'completed', 'Query enrichment completed');
+              
               processQueryResponse(responseData);
               // Add detailed transparency steps for ActivityLog
               addProcessStep('transparency', 'in-progress', 'Processing response details...');
@@ -1520,7 +1523,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         {/* Header */}
        <div className={`p-4 bg-white flex-shrink-0 flex items-center justify-between transition-all duration-200 ${isScrolled ? 'border-b border-gray-200 shadow-sm' : '' }`}>
           <div className="flex items-center space-x-3">
-            <h2 className="text-4xl top-0 font-Poppins font-semibold  bg-gradient-to-l from-purple-500  to-black  bg-clip-text text-transparent">Precise-ai</h2>
+            <h2 className="text-4xl top-0 font-Poppins font-semibold  bg-gradient-to-l from-purple-500  to-black  bg-clip-text text-transparent">Precise-AI</h2>
           </div>
         </div>
 
