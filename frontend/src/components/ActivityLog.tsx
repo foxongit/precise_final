@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MessageSquare, Upload, FileText, RefreshCw, Search, Brain, Shield, Zap, X, Database, Code, Layers, Key, BarChart3, FileSearch, Hash } from 'lucide-react';
+import { MessageSquare, Upload, FileText, RefreshCw, Search, Brain, Shield, Zap, X, Database, Code, Layers, Key, BarChart3, FileSearch, Hash, Archive, Settings } from 'lucide-react';
  
 interface Session {
   id: string;
@@ -159,9 +159,19 @@ export default function ActivityLog({ currentSessionId, sessions = [], currentPr
       case 'response': return <Zap className={`${baseClasses} text-yellow-600 ${statusClasses}`} />;
       case 'scaled_result': return <BarChart3 className={`${baseClasses} text-blue-500`} />;
       case 'unscaled_result': return <BarChart3 className={`${baseClasses} text-indigo-500`} />;
+      
+      // Phase 2 calculation details
+      case 'phase2_execution': return <Settings className={`${baseClasses} text-teal-600`} />;
+      case 'phase2_function': return <Code className={`${baseClasses} text-teal-700`} />;
+      case 'phase2_scaling': return <BarChart3 className={`${baseClasses} text-teal-500`} />;
+      case 'phase2_conflict': return <Shield className={`${baseClasses} text-teal-800`} />;
      
       // Formula & processing
       case 'formula_check': return <Code className={`${baseClasses} text-purple-500`} />;
+      case 'function_bank': return <Archive className={`${baseClasses} text-blue-600`} />;
+      case 'function_reused': return <Settings className={`${baseClasses} text-green-600`} />;
+      case 'function_generated': return <Settings className={`${baseClasses} text-orange-600`} />;
+      case 'specific_function': return <Code className={`${baseClasses} text-purple-500`} />;
       case 'formula_generated': return <Hash className={`${baseClasses} text-purple-600`} />;
       case 'formula_display': return <Code className={`${baseClasses} text-purple-700`} />;
       case 'original_query': return <Search className={`${baseClasses} text-blue-700`} />;
@@ -198,8 +208,8 @@ export default function ActivityLog({ currentSessionId, sessions = [], currentPr
       'Query Processing': ['query', 'original_query', 'enriched_query', 'enrich'],
       'Document Retrieval': ['retrieve', 'retrieved_chunks', 'retrieved_metadata', 'chunk_detail_0', 'chunk_detail_1', 'chunk_detail_2'],
       'Privacy & Masking': ['mask', 'masked_chunks', 'masked_response', 'unmasked_response'],
-      'Response Generation': ['response', 'scaled_result', 'unscaled_result'],
-      'Final Processing': ['formula_check', 'formula_generated', 'formula_display', 'processed_docs', 'conversation_saved', 'query_processed', 'chat_log_pending', 'transparency', 'final_status']
+      'Response Generation': ['response', 'scaled_result', 'unscaled_result', 'phase2_execution', 'phase2_function', 'phase2_scaling', 'phase2_conflict'],
+      'Final Processing': ['function_bank', 'function_reused', 'function_generated', 'specific_function', 'formula_check', 'formula_generated', 'formula_display', 'processed_docs', 'conversation_saved', 'query_processed', 'chat_log_pending', 'transparency', 'final_status']
     };
  
     const grouped: Record<string, ProcessStep[]> = {};
