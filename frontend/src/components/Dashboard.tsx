@@ -1145,6 +1145,64 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 addProcessStep('unscaled_result', 'completed', 'Unscaled Result: Not available');
               }
               
+              // Phase 2 Calculation Details
+              if (responseData.phase2) {
+                const phase2 = responseData.phase2;
+                if (phase2.execution_id) {
+                  addProcessStep('phase2_execution', 'completed', `Phase 2 Execution ID: ${phase2.execution_id}`);
+                }
+                if (phase2.function_name) {
+                  addProcessStep('phase2_function', 'completed', `Phase 2 Function: ${phase2.function_name} | Formula: ${phase2.formula || 'N/A'}`);
+                }
+                if (phase2.original_result !== undefined && phase2.scaled_result !== undefined) {
+                  addProcessStep('phase2_scaling', 'completed', `Phase 2 Scaling: Original ${phase2.original_result} → Scaled ${phase2.scaled_result} (Factor: ${phase2.scale_factor_a || 'N/A'})`);
+                }
+                if (phase2.conflict_resolved !== undefined) {
+                  addProcessStep('phase2_conflict', 'completed', `Phase 2 Conflict Resolution: ${phase2.conflict_resolved ? 'Resolved' : 'No conflicts'}`);
+                }
+              }
+              
+              // Function Bank Processing
+              if (responseData.function_bank && Array.isArray(responseData.function_bank)) {
+                if (responseData.function_bank.length > 0) {
+                  const functionBankSummary = responseData.function_bank.map((func: any) => 
+                    `${func.name || 'Unknown'} (${func.calculation_type || 'general'})`
+                  ).join(', ');
+                  addProcessStep('function_bank', 'completed', `Function Bank: ${responseData.function_bank.length} functions available - ${functionBankSummary}`);
+                } else {
+                  addProcessStep('function_bank', 'completed', 'Function Bank: No functions available');
+                }
+              } else {
+                addProcessStep('function_bank', 'completed', 'Function Bank: Not available');
+              }
+              
+              // Function Reuse/Generation Status
+              if (responseData.function_reused !== undefined) {
+                if (responseData.function_reused) {
+                  addProcessStep('function_reused', 'completed', 'Function Reused: Yes - Existing function found and used');
+                } else {
+                  addProcessStep('function_reused', 'completed', 'Function Reused: No - Function not found in bank');
+                }
+              }
+              
+              if (responseData.function_generated !== undefined) {
+                if (responseData.function_generated) {
+                  addProcessStep('function_generated', 'completed', 'Function Generated: Yes - New function created and saved');
+                } else {
+                  addProcessStep('function_generated', 'completed', 'Function Generated: No - No new function created');
+                }
+              }
+              
+              // Specific Function Used
+              if (responseData.specific_function_used) {
+                const funcDetails = `${responseData.specific_function_used}`;
+                if (responseData.specific_function_formula) {
+                  addProcessStep('specific_function', 'completed', `Function Used: ${funcDetails} | Formula: ${responseData.specific_function_formula}`);
+                } else {
+                  addProcessStep('specific_function', 'completed', `Function Used: ${funcDetails}`);
+                }
+              }
+              
               // Formula Generation Check
               // const formulaGenerated = responseData.formula_generated || responseData.has_formula || false;
               // addProcessStep('formula_check', 'completed', `Formula Generated: ${formulaGenerated ? 'Yes' : 'No'}`);
