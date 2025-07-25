@@ -157,7 +157,7 @@ class RAGPipeline:
             elif "computeNeeded" in unmasked_result and unmasked_result['computeNeeded'] == "False":
                 # Generate direct response when computation is not needed
                 direct_response = generate_direct_response(
-                    query,
+                    enriched_query,
                     unmasked_result,
                     self.llm)
                 print("Direct Response Generated:", direct_response)

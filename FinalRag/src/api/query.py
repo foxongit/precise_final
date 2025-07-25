@@ -96,7 +96,7 @@ async def process_query(request: QueryRequest):
             chat_log_result = session_service.save_chat_log(
                 session_id=request.session_id,
                 prompt=request.query,
-                response=result["scaled_response"]  # Use scaled_response instead of response
+                response=result["unscaled_response"]  # Use unscaled_response instead of scaled_response
             )
             
             # Use the full result as response_data to include all pipeline outputs

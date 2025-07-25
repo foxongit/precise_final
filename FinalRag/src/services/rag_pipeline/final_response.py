@@ -57,12 +57,12 @@ def generate_direct_response(enriched_query: str, unmasked_result: str, llm) -> 
     try:
         prompt = f"""
 You are a helpful assistant that provides direct answers from the given context.
-
+ 
 USER QUERY: {enriched_query}
-
+ 
 CONTEXT (unmasked financial data):
 {unmasked_result}
-
+ 
 INSTRUCTIONS:
 1. Answer the query using ONLY the information from the context
 2. Use the actual numerical values from the unmasked data in your response
@@ -77,20 +77,20 @@ Remember: Your response should contain real numerical values, not masked variabl
 """
         # Convert to LangChain message format for better handling
         from langchain_core.messages import SystemMessage, HumanMessage
-        
+       
         langchain_messages = [
             SystemMessage(content=prompt)
         ]
-        
+       
         # Generate response using LLM
         response = llm.invoke(langchain_messages)
         final_text = response.content.strip() if hasattr(response, 'content') else str(response).strip()
-        
+       
         if not final_text:
             return "Direct response generation failed: Empty response received"
-            
+           
         return final_text
-        
+       
     except Exception as e:
         print(f"Error in generate_direct_response: {e}")
         return f"Direct response generation failed: {str(e)}"
